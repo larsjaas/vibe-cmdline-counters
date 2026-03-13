@@ -87,10 +87,37 @@ void read_counters(const char *filename) {
         counters[count] = NULL; // keep NULL terminator
     }
     fclose(fp);
+    }
+
+// Check if counter exists
+int counter_exists(const char *name) {
+    if (!counters) return 0;
+    for (counter **p = counters; *p; p++) {
+        if (strcmp((*p)->name, name) == 0) return 1;
+    }
+    return 0;
 }
 
-int main(int argc, char *argv[]) {
-    const char *countersfile = NULL;
+// Add a new counter
+int add_counter(const char *name, int count) {
+    if (!name) return 0;
+    size_t sz = 0;
+    while (counters && counters[sz]) sz++;
+    counter *cnt = malloc(sizeof(counter));
+    if (!cnt) return 0;
+    cnt->name = malloc(strlen(name) + 1);
+    if (!cnt->name) { free(cnt); return 0; }
+    strcpy(cnt->name, name);
+    cnt->count = count;
+    counter **new_arr = realloc(counters, (sz + 2) * sizeof(counter *));
+    if (!new_arr) { free(cnt->name); free(cnt); return 0; }
+    counters = new_arr;
+    counters[sz] = cnt;
+    counters[sz + 1] = NULL;
+    return 1;
+}
+
+int main(int argc, char *argv[]) {    const char *countersfile = NULL;
     const char *countername = NULL;
     const char *set_value = NULL;
     const char *update_value = NULL;
@@ -133,11 +160,11 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    if (!countersfile) {
+    if (!countersfile) { // tag1
         countersfile = getenv("COUNTERS_FILE");
     }
 
-    if (!countersfile) {
+    if (!countersfile) { // tag2
         const char *home = getenv("HOME");
         if (!home) home = ".";
         static char default_buf[1024];
@@ -147,7 +174,15 @@ int main(int argc, char *argv[]) {
 
     read_counters(countersfile);
 
+    
+    if (countername && !counter_exists(countername)) {
+        add_counter(countername, 0);
+    }
+
     printf("Hello world!\n");
+    (void)set_value;
+    (void)update_value;
+    (void)delete_flag;
 
     write_counters(countersfile);
     return 0;
