@@ -117,6 +117,24 @@ int add_counter(const char *name, int count) {
     return 1;
 }
 
+int delete_counter(const char *name) {
+    if (!name || !counters) return 0;
+    size_t found = (size_t)-1;
+    for (size_t i = 0; counters[i]; i++) {
+        if (strcmp(counters[i]->name, name) == 0) { found = i; break; }
+    }
+    if (found == (size_t)-1) return 0;
+    free(counters[found]->name);
+    free(counters[found]);
+    size_t j = found;
+    while (counters[j + 1]) {
+        counters[j] = counters[j + 1];
+        j++;
+    }
+    counters[j] = NULL;
+    return 1;
+}
+
 int main(int argc, char *argv[]) {    const char *countersfile = NULL;
     const char *countername = NULL;
     const char *set_value = NULL;
@@ -160,6 +178,11 @@ int main(int argc, char *argv[]) {    const char *countersfile = NULL;
         }
     }
 
+    if (argc == 1) {
+	    printf("Hello world!\n");
+	    return 0;
+    }
+
     if (!countersfile) { // tag1
         countersfile = getenv("COUNTERS_FILE");
     }
@@ -175,11 +198,15 @@ int main(int argc, char *argv[]) {    const char *countersfile = NULL;
     read_counters(countersfile);
 
     
+
     if (countername && !counter_exists(countername)) {
         add_counter(countername, 0);
     }
 
-    printf("Hello world!\n");
+    if (delete_flag && countername) {
+        delete_counter(countername);
+    }
+
     (void)set_value;
     (void)update_value;
     (void)delete_flag;
