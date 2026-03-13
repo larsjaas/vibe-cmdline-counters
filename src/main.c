@@ -60,7 +60,13 @@ void read_counters(const char *filename) {
 
         counter *cnt = malloc(sizeof(counter));
         if (!cnt) break;
-        cnt->name = strdup(name_part);
+        cnt->name = malloc(strlen(name_part) + 1);
+        if (cnt->name) {
+            memcpy(cnt->name, name_part, strlen(name_part) + 1);
+        } else {
+            free(cnt);
+            break;
+        }
         if (!cnt->name) {
             free(cnt);
             break;
@@ -83,7 +89,66 @@ void read_counters(const char *filename) {
     fclose(fp);
 }
 
-int main(void) {
+int main(int argc, char *argv[]) {
+    const char *countersfile = NULL;
+    const char *countername = NULL;
+    const char *set_value = NULL;
+    const char *update_value = NULL;
+    int delete_flag = 0;
+
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "-f") == 0 && i + 1 < argc) {
+            countersfile = argv[i + 1];
+            i++;
+            continue;
+        } else if (strncmp(argv[i], "--file=", 7) == 0) {
+            countersfile = argv[i] + 7;
+            continue;
+        } else if (strcmp(argv[i], "--file") == 0 && i + 1 < argc) {
+            countersfile = argv[i + 1];
+            i++;
+            continue;
+        } else if (strcmp(argv[i], "--set") == 0 && i + 1 < argc) {
+            set_value = argv[i + 1];
+            i++;
+            continue;
+        } else if (strcmp(argv[i], "-s") == 0 && i + 1 < argc) {
+            set_value = argv[i + 1];
+            i++;
+            continue;
+        } else if (strcmp(argv[i], "--update") == 0 && i + 1 < argc) {
+            update_value = argv[i + 1];
+            i++;
+            continue;
+        } else if (strcmp(argv[i], "-u") == 0 && i + 1 < argc) {
+            update_value = argv[i + 1];
+            i++;
+            continue;
+        } else if (strcmp(argv[i], "--delete") == 0) {
+            delete_flag = 1;
+            continue;
+        } else if (!countername) {
+            countername = argv[i];
+            continue;
+        }
+    }
+
+    if (!countersfile) {
+        countersfile = getenv("COUNTERS_FILE");
+    }
+
+    if (!countersfile) {
+        const char *home = getenv("HOME");
+        if (!home) home = ".";
+        static char default_buf[1024];
+        snprintf(default_buf, sizeof(default_buf), "%s/.counters", home);
+        countersfile = default_buf;
+    }
+
+    read_counters(countersfile);
+
     printf("Hello world!\n");
+
+    write_counters(countersfile);
     return 0;
 }
