@@ -175,6 +175,19 @@ counter2,-4' ]; then
         echo "$content"
         exit 1
     fi
+    # Verify counter outputs
+    out1=$(./bin/app --file .test7-counters.csv counter)
+    if [ "$out1" != "0" ]; then
+        echo "test7 ... error"
+        echo "Expected output '0' for counter, got: $out1"
+        exit 1
+    fi
+    out2=$(./bin/app --file .test7-counters.csv counter2)
+    if [ "$out2" != "-4" ]; then
+        echo "test7 ... error"
+        echo "Expected output '-4' for counter2, got: $out2"
+        exit 1
+    fi
     echo "test7 ... ok"
 }
 
