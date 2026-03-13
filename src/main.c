@@ -191,7 +191,7 @@ int main(int argc, char *argv[]) {    const char *countersfile = NULL;
             update_value = argv[i + 1];
             i++;
             continue;
-        } else if (strcmp(argv[i], "--delete") == 0) {
+        } else if (strcmp(argv[i], "--delete") == 0 || strcmp(argv[i], "-d") == 0) {
             delete_flag = 1;
             continue;
         } else if (!countername) {
