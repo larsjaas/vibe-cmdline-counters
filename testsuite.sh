@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 
-# Exit immediately if a command exits with a non-zero status
+# Exit immediately if any command fails
 set -e
 
-# Function to clean up test counter files
+# Clean up any test counter files on exit
 cleanup() {
     rm -f .test*-counters.csv
 }
-
-# Ensure cleanup happens on exit (success or failure)
 trap cleanup EXIT
 
-# Test 1: Create a counter file with initial value 0
+# ------------------------------
+# Test 1 – create counter1 with default value
+# ------------------------------
 
 test1() {
     ./bin/app --file .test1-counters.csv ticks
@@ -30,9 +30,59 @@ test1() {
     echo "test1 ... ok"
 }
 
+# ------------------------------
+# Test 2 – invoke app twice, creating two counters
+# ------------------------------
+
+test2() {
+    # First invocation creates counter1
+    ./bin/app --file .test2-counters.csv counter1
+    content=$(cat .test2-counters.csv)
+    if [ "$content" != "counter1,0" ]; then
+        echo "test2 ... error"
+        echo "After first call expected counter1,0 but got:"
+        echo "$content"
+        exit 1
+    fi
+
+    # Second invocation should add counter2
+    ./bin/app --file .test2-counters.csv counter2
+    content=$(cat .test2-counters.csv)
+    expected=$'counter1,0
+counter2,0'
+    if [[ "$content" != "$expected" ]]; then
+        echo "test2 ... error"
+        echo "After second call expected two lines but got:"
+        echo "$content"
+        exit 1
+    fi
+    echo "test2 ... ok"
+}
+
+# ------------------------------
+# Test 3 – set counter value to 10
+# ------------------------------
+
+test3() {
+    # Ensure the file starts clean
+    rm -f .test3-counters.csv
+    ./bin/app --file .test3-counters.csv counter1
+    ./bin/app --file .test3-counters.csv --set 10 counter1
+    content=$(cat .test3-counters.csv)
+    if [ "$content" != "counter1,10" ]; then
+        echo "test3 ... error"
+        echo "Expected counter1,10 but got:"
+        echo "$content"
+        exit 1
+    fi
+    echo "test3 ... ok"
+}
+
 # Run the tests
 
 test1
+test2
+test3
 
 # All tests passed
 exit 0
