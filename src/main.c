@@ -240,8 +240,6 @@ int main(int argc, char *argv[]) {    const char *countersfile = NULL;
                     break;
                 }
             }
-            if (counters[i])
-                printf("%d\n", counters[i]->count);
         } else if (update_value) {
             long delta = strtol(update_value, NULL, 10);
             size_t i;
@@ -251,8 +249,6 @@ int main(int argc, char *argv[]) {    const char *countersfile = NULL;
                     break;
                 }
             }
-            if (counters[i])
-                printf("%d\n", counters[i]->count);
         } else {
             size_t i;
             for (i = 0; counters[i]; i++) {

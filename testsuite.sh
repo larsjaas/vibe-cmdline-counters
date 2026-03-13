@@ -14,7 +14,7 @@ trap cleanup EXIT
 # -------------------------------------------------------------------------
 
 test1() {
-    ./bin/app --file .test1-counters.csv ticks
+    ./bin/app --file .test1-counters.csv ticks >/dev/null
     if [ ! -f .test1-counters.csv ]; then
         echo "test1 ... error"
         echo "File .test1-counters.csv not found."
@@ -35,7 +35,7 @@ test1() {
 # -------------------------------------------------------------------------
 
 test2() {
-    ./bin/app --file .test2-counters.csv counter1
+    ./bin/app --file .test2-counters.csv counter1 >/dev/null
     content=$(cat .test2-counters.csv)
     if [ "$content" != "counter1,0" ]; then
         echo "test2 ... error"
@@ -43,7 +43,7 @@ test2() {
         echo "$content"
         exit 1
     fi
-    ./bin/app --file .test2-counters.csv counter2
+    ./bin/app --file .test2-counters.csv counter2 >/dev/null
     content=$(cat .test2-counters.csv)
     expected=$'counter1,0
 counter2,0'
@@ -62,7 +62,7 @@ counter2,0'
 
 test3() {
     rm -f .test3-counters.csv
-    ./bin/app --file .test3-counters.csv counter1
+    ./bin/app --file .test3-counters.csv counter1 >/dev/null
     ./bin/app --file .test3-counters.csv --set 10 counter1
     content=$(cat .test3-counters.csv)
     if [ "$content" != "counter1,10" ]; then
@@ -97,7 +97,7 @@ test4() {
 
 test5() {
     rm -f .test5-counters.csv
-    ./bin/app --file .test5-counters.csv counter
+    ./bin/app --file .test5-counters.csv counter >/dev/null
     content=$(cat .test5-counters.csv)
     if [ "$content" != "counter,0" ]; then
         echo "test5 ... error"
@@ -122,7 +122,7 @@ test5() {
 
 test6() {
     rm -f .test6-counters.csv
-    ./bin/app --file .test6-counters.csv counter
+    ./bin/app --file .test6-counters.csv counter >/dev/null
     content=$(cat .test6-counters.csv)
     if [ "$content" != "counter,0" ]; then
         echo "test6 ... error"
@@ -147,7 +147,7 @@ test6() {
 test7() {
     rm -f .test7-counters.csv
     # 1st call: create 'counter' with 0
-    ./bin/app --file .test7-counters.csv counter
+    ./bin/app --file .test7-counters.csv counter >/dev/null
     content=$(cat .test7-counters.csv)
     if [ "$content" != "counter,0" ]; then
         echo "test7 ... error"
