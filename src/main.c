@@ -199,17 +199,48 @@ int main(int argc, char *argv[]) {    const char *countersfile = NULL;
 
     
 
-    if (countername && !counter_exists(countername)) {
-        add_counter(countername, 0);
-    }
+    // Counter existence handled in main logic
+    // Handle counter operations
+    if (countername) {
+        // Ensure counter exists
+        if (!counter_exists(countername)) {
+            add_counter(countername, 0);
+        }
 
-    if (delete_flag && countername) {
-        delete_counter(countername);
+        if (delete_flag) {
+            delete_counter(countername);
+        } else if (set_value) {
+            long val = strtol(set_value, NULL, 10);
+            size_t i;
+            for (i = 0; counters[i]; i++) {
+                if (strcmp(counters[i]->name, countername) == 0) {
+                    counters[i]->count = (int)val;
+                    break;
+                }
+            }
+            if (counters[i])
+                printf("%d\n", counters[i]->count);
+        } else if (update_value) {
+            long delta = strtol(update_value, NULL, 10);
+            size_t i;
+            for (i = 0; counters[i]; i++) {
+                if (strcmp(counters[i]->name, countername) == 0) {
+                    counters[i]->count += (int)delta;
+                    break;
+                }
+            }
+            if (counters[i])
+                printf("%d\n", counters[i]->count);
+        } else {
+            size_t i;
+            for (i = 0; counters[i]; i++) {
+                if (strcmp(counters[i]->name, countername) == 0) {
+                    printf("%d\n", counters[i]->count);
+                    break;
+                }
+            }
+        }
     }
-
-    (void)set_value;
-    (void)update_value;
-    (void)delete_flag;
 
     write_counters(countersfile);
     return 0;
