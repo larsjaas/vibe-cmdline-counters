@@ -3,6 +3,20 @@
 #include <string.h>
 
 // Counter structure
+
+static void print_help(void) {
+    printf("cmdline-counter\n");
+    printf("Usage: \n");
+    printf("  app [options] [counter]\n\n");
+    printf("Options:\n");
+    printf("  -f, --file=FILE        specify counters file\n");
+    printf("  --set=VALUE, -s VALUE  set counter to value\n");
+    printf("  --update=VALUE, -u VALUE increment counter by value\n");
+    printf("  --delete, -d            delete counter\n");
+    printf("  -h, --help, -?         show this help\n");
+    printf("\n");
+}
+
 typedef struct counter {
     char *name;
     int count;
@@ -141,6 +155,14 @@ int main(int argc, char *argv[]) {    const char *countersfile = NULL;
     const char *update_value = NULL;
     int delete_flag = 0;
 
+    // Check for help flags before processing other options
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-?") == 0) {
+            print_help();
+            return 0;
+        }
+    }
+
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-f") == 0 && i + 1 < argc) {
             countersfile = argv[i + 1];
@@ -179,8 +201,8 @@ int main(int argc, char *argv[]) {    const char *countersfile = NULL;
     }
 
     if (argc == 1) {
-	    printf("Hello world!\n");
-	    return 0;
+        print_help();
+        return 0;
     }
 
     if (!countersfile) { // tag1
