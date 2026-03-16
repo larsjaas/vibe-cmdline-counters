@@ -164,22 +164,14 @@ int main(int argc, char *argv[]) {    const char *countersfile = NULL;
     }
 
     for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "-f") == 0 && i + 1 < argc) {
+        if ((strcmp(argv[i], "-f") == 0 || strcmp(argv[i], "--file") == 0) && i + 1 < argc) {
             countersfile = argv[i + 1];
             i++;
             continue;
         } else if (strncmp(argv[i], "--file=", 7) == 0) {
             countersfile = argv[i] + 7;
             continue;
-        } else if (strcmp(argv[i], "--file") == 0 && i + 1 < argc) {
-            countersfile = argv[i + 1];
-            i++;
-            continue;
-        } else if (strcmp(argv[i], "--set") == 0 && i + 1 < argc) {
-            set_value = argv[i + 1];
-            i++;
-            continue;
-        } else if (strcmp(argv[i], "-s") == 0 && i + 1 < argc) {
+        } else if ((strcmp(argv[i], "--set") == 0 || strcmp(argv[i], "-s") == 0) && i + 1 < argc) {
             set_value = argv[i + 1];
             i++;
             continue;
