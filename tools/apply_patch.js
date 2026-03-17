@@ -1,133 +1,178 @@
 #!/usr/bin/env node
 
-// CommonJS version of apply_patch.js
-const fs = require("fs").promises;
-const readline = require("readline");
+const fs = require("fs");
+const fsp = require("fs/promises");
 const path = require("path");
 
+// ---- Read stdin safely ----
 async function readStdin() {
-  const rl = readline.createInterface({ input: process.stdin });
-  let data = "";
-  for await (const line of rl) data += line + "\n";
-  return data;
+  return new Promise((resolve, reject) => {
+    let data = "";
+    process.stdin.setEncoding("utf8");
+
+    process.stdin.on("data", chunk => (data += chunk));
+    process.stdin.on("end", () => resolve(data));
+    process.stdin.on("error", reject);
+  });
 }
 
-async function main() {
-  try {
-    const inputStr = await readStdin();
-    const args = JSON.parse(inputStr);
-    const patch = args.patch;
-    if (!patch) throw new Error("Missing patch field");
+// ---- Ensure directory exists ----
+async function ensureDir(filePath) {
+  await fsp.mkdir(path.dirname(filePath), { recursive: true });
+}
 
-    const lines = patch.split(/\r?\n/);
+// ---- Apply patch ----
+async function applyPatch(patchText) {
+  const lines = patchText.split("\n");
 
-    let currentFile = null;
-    let fileLines = [];
-    let fileBuffer = [];
-    let inHunk = false;
+  let currentFile = null;
+  let fileBuffer = [];
+  let originalLines = [];
 
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
+  let mode = null; // null | "add" | "update"
+  let inHunk = false;
 
-      if (line.startsWith("*** Begin Patch") || line.trim() === "") continue;
+  async function flushFile() {
+    if (currentFile === null) return;
 
-      if (line.startsWith("*** Update File:")) {
-        if (currentFile !== null) {
-          await fs.mkdir(path.dirname(currentFile), { recursive: true });
-          await fs.writeFile(currentFile, fileBuffer.join("\n") + "\n");
-          console.log(`Patched file ${currentFile}`);
-        }
-        currentFile = line.replace("*** Update File:", "").trim();
-        try {
-          fileLines = (await fs.readFile(currentFile, "utf-8")).split(/\r?\n/);
-        } catch {
-          fileLines = [];
-        }
-        fileBuffer = [...fileLines];
-        inHunk = false;
-        continue;
+    await ensureDir(currentFile);
+    await fsp.writeFile(currentFile, fileBuffer.join("\n"), "utf8");
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // ---- FILE OPERATIONS ----
+
+    if (line.startsWith("*** Update File: ")) {
+      await flushFile();
+
+      currentFile = line.replace("*** Update File: ", "").trim();
+      mode = "update";
+      inHunk = false;
+
+      try {
+        const content = await fsp.readFile(currentFile, "utf8");
+        originalLines = content.split("\n");
+      } catch {
+        originalLines = [];
       }
 
-      if (line.startsWith("*** Delete File:")) {
-        const filePath = line.replace("*** Delete File:", "").trim();
-      
-        try {
-          await fs.unlink(filePath);
-          console.log(`Deleted file ${filePath}`);
-        } catch (err) {
-          console.error(`Failed to delete ${filePath}: ${err.message}`);
-        }
-      
-        // reset state
-        currentFile = null;
-        fileBuffer = [];
-        inHunk = false;
-        continue;
+      fileBuffer = [...originalLines];
+      continue;
+    }
+
+    if (line.startsWith("*** Add File: ")) {
+      await flushFile();
+
+      currentFile = line.replace("*** Add File: ", "").trim();
+      mode = "add";
+      inHunk = false;
+      fileBuffer = [];
+      continue;
+    }
+
+    if (line.startsWith("*** Delete File: ")) {
+      const fileToDelete = line.replace("*** Delete File: ", "").trim();
+
+      try {
+        await fsp.unlink(fileToDelete);
+        console.error(`Deleted ${fileToDelete}`);
+      } catch {
+        console.error(`File not found for deletion: ${fileToDelete}`);
       }
 
-      if (line.startsWith("*** Add File:")) {
-        const filePath = line.replace("*** Add File:", "").trim();
-        currentFile = filePath;
-        fileBuffer = [];
-        inHunk = "add";
-        continue;
-      }
+      continue;
+    }
 
-      if (line.startsWith("*** End Patch")) {
-        if (currentFile !== null) {
-          await fs.mkdir(path.dirname(currentFile), { recursive: true });
-          await fs.writeFile(currentFile, fileBuffer.join("\n") + "\n");
-          console.log(`Patched file ${currentFile}`);
-        }
-        currentFile = null;
-        fileBuffer = [];
-        continue;
-      }
+    if (line.startsWith("*** End Patch")) {
+      await flushFile();
+      currentFile = null;
+      mode = null;
+      continue;
+    }
 
-      if (line.startsWith("@@")) {
-        inHunk = true;
-        continue;
-      }
+    // ---- HUNKS ----
 
-      if (inHunk && currentFile) {
-        if (inHunk === "add") {
-          fileBuffer.push(line);
-          continue;
-        }
-      
-        if (line.startsWith("-")) {
-          const oldLine = line.slice(1);
-          const nextLine = lines[i + 1];
-        
-          if (nextLine && nextLine.startsWith("+")) {
-            const newLine = nextLine.slice(1);
-            const index = fileBuffer.indexOf(oldLine);
-        
-            if (index >= 0) {
-              fileBuffer.splice(index, 1, newLine); // replace in-place
-            }
-        
-            i++; // skip the "+" line
+    if (line.startsWith("@@")) {
+      inHunk = true;
+      continue;
+    }
+
+    // ---- ADD FILE MODE ----
+
+    if (mode === "add") {
+      if (line.startsWith("+")) {
+        fileBuffer.push(line.slice(1));
+      } else if (!line.startsWith("@@")) {
+        fileBuffer.push(line);
+      }
+      continue;
+    }
+
+    // ---- UPDATE MODE ----
+
+    if (mode === "update" && inHunk) {
+      // Replace (- followed by +)
+      if (line.startsWith("-")) {
+        const oldLine = line.slice(1);
+        const nextLine = lines[i + 1];
+
+        const index = fileBuffer.indexOf(oldLine);
+
+        if (nextLine && nextLine.startsWith("+")) {
+          const newLine = nextLine.slice(1);
+
+          if (index >= 0) {
+            fileBuffer.splice(index, 1, newLine);
           } else {
-            // pure deletion
-            const index = fileBuffer.indexOf(oldLine);
-            if (index >= 0) fileBuffer.splice(index, 1);
+            console.error(`WARN: line not found for replace: ${oldLine}`);
           }
-        } else if (line.startsWith("+")) {
-          fileBuffer.push(line.slice(1));
+
+          i++; // skip "+"
+        } else {
+          // Pure delete
+          if (index >= 0) {
+            fileBuffer.splice(index, 1);
+          } else {
+            console.error(`WARN: line not found for delete: ${oldLine}`);
+          }
         }
+
+        continue;
       }
+
+      // Standalone add
+      if (line.startsWith("+")) {
+        fileBuffer.push(line.slice(1));
+        continue;
+      }
+
+      // Context line (ignored in this simple implementation)
+      continue;
+    }
+  }
+
+  // Final flush (if no *** End Patch)
+  await flushFile();
+}
+
+// ---- Main ----
+(async () => {
+  try {
+    const input = await readStdin();
+    const json = JSON.parse(input);
+
+    if (!json.patch) {
+      throw new Error("Missing patch field");
     }
 
-    if (currentFile !== null) {
-      await fs.mkdir(path.dirname(currentFile), { recursive: true });
-      await fs.writeFile(currentFile, fileBuffer.join("\n") + "\n");
-      console.log(`Patched file ${currentFile}`);
-    }
+    await applyPatch(json.patch);
+
+    console.log("Patch applied successfully");
   } catch (err) {
     console.error("Error applying patch:", err.message);
     process.exit(1);
   }
-}
+})();
 
-main();
