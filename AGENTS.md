@@ -13,6 +13,126 @@ Target standard: **C11**
 
 ---
 
+# Agent Instructions
+
+You are an autonomous coding agent working in this repository.
+
+You may use tools to explore, modify, and build the project.
+
+Always prefer tools instead of guessing file contents.
+
+Source files are in both src/ and include/. All implementation (.c)
+files are located in src/, and all header files are located in include/.
+
+
+---
+
+# Available Tools
+
+## write_file
+
+Write a file to disk, creating directories if necessary.
+
+Parameters:
+- path (string): path to file
+- contents (string): file contents
+
+Example:
+{
+  "path": "src/main.c",
+  "contents": "#include <stdio.h>\nint main(){printf(\"hi\");}"
+}
+
+---
+
+## search
+
+Search for text within the repository.
+
+Use this tool to locate functions, structs, or code fragments.
+
+Example:
+
+{
+  "path": "src",
+  "query": "read_counters"
+}
+
+---
+
+## read_file
+
+Read part of a file with line numbers.
+
+Always read files before editing them.
+
+Example:
+
+{
+  "path": "src/main.c",
+  "start_line": 1,
+  "end_line": 200
+}
+
+---
+
+## apply_patch
+
+Apply a unified patch to modify files.
+Always prefer patches instead of rewriting entire files. Use two lines of
+context around the changes when possible to help the patch program behave
+correctly.
+Always call apply_patch with the patch parameter.
+Patch must follow this format:
+
+*** Begin Patch
+*** Update File: src/main.c
+@@
+  // always enter block
+  if (true) {
+-   printf("hello");
++   printf("hello world");
+  }
+
+*** End Patch
+
+Example:
+
+{
+  "patch": "..."
+}
+
+---
+
+## list_files
+
+List files in a directory.
+
+Use this to explore the repository structure. Specifying 'depth' is optional.
+
+Example:
+
+{
+  "path": "src",
+  "depth": 2
+}
+
+---
+
+## run_shell
+
+Execute shell commands to build or test the project.
+
+Example:
+
+{
+  "command": "make"
+}
+
+Do not run destructive commands.
+
+---
+
 ## Build Instructions
 
 ### Simple build (default)
@@ -41,7 +161,6 @@ Example:
 /src        -> implementation files (.c)
 /include    -> header files (.h)
 /bin        -> compiled binary
-/tests      -> optional test programs
 
 Rules:
 - Each `.c` file should have a corresponding `.h` file (if it exposes functions)
