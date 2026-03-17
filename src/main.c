@@ -77,6 +77,7 @@ int main(int argc, char *argv[])
     const char *set_value = NULL;
     const char *update_value = NULL;
     int delete_flag = 0;
+    int skip_set = 0;
     FILE *logfp = NULL;
 
     /* Check for help flag early. */
@@ -173,11 +174,21 @@ int main(int argc, char *argv[])
     if (countername) {
         /* Ensure counter exists (create if not). */
         if (!counter_exists(countername)) {
-            int init_val = 0;
-            add_counter(countername, init_val);
-            if (logfp) {
-                long long epoch = timestamp_override ? timestamp_override : get_epoch_milliseconds();
-                fprintf(logfp, "new,%s,%lld,%lld\n", countername, init_val, epoch);
+            if (!set_value) {
+                int init_val = 0;
+                add_counter(countername, init_val);
+                if (logfp) {
+                    long long epoch = timestamp_override ? timestamp_override : get_epoch_milliseconds();
+                    fprintf(logfp, "new,%s,%lld,%lld\n", countername, init_val, epoch);
+                }
+            } else {
+                int val = strtoll(set_value, NULL, 10);
+                add_counter(countername, val);
+                if (logfp) {
+                    long long epoch = timestamp_override ? timestamp_override : get_epoch_milliseconds();
+                    fprintf(logfp, "new,%s,%lld,%lld\n", countername, val, epoch);
+                }
+                skip_set = 1;
             }
         }
 
@@ -187,7 +198,7 @@ int main(int argc, char *argv[])
                 long long epoch = timestamp_override ? timestamp_override : get_epoch_milliseconds();
                 fprintf(logfp, "delete,%s,%lld\n", countername, epoch);
             }
-        } else if (set_value) {
+        } else if (set_value && !skip_set) {
             long long val = strtoll(set_value, NULL, 10);
             int idx = 0;
             while (counters[idx]) {
@@ -216,14 +227,16 @@ int main(int argc, char *argv[])
                 fprintf(logfp, "update,%s,%lld,%lld\n", countername, delta, epoch);
             }
         } else {
-            /* Print current value. */
-            int idx = 0;
-            while (counters[idx]) {
-                if (strcmp(counters[idx]->name, countername) == 0) {
-                    printf("%d\n", counters[idx]->count);
-                    break;
+            if (!skip_set) {
+                /* Print current value. */
+                int idx = 0;
+                while (counters[idx]) {
+                    if (strcmp(counters[idx]->name, countername) == 0) {
+                        printf("%d\n", counters[idx]->count);
+                        break;
+                    }
+                    ++idx;
                 }
-                ++idx;
             }
         }
     }
