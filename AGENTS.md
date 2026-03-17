@@ -79,16 +79,14 @@ Example:
 ## apply_patch
 
 Apply a unified patch to modify files.
-Always prefer patches instead of rewriting entire files. Use two lines of
-context around the changes when possible to help the patch program behave
-correctly.
-Always call apply_patch with the patch parameter.
+Always prefer patches instead of rewriting entire files.
+Use two lines of context above and below the changes to help patch behave correctly.
 Patch must follow this format:
 
 *** Begin Patch
 *** Update File: src/main.c
 @@
-  // always enter block
+  // some comment
   if (true) {
 -   printf("hello");
 +   printf("hello world");
@@ -128,8 +126,6 @@ Example:
 {
   "command": "make"
 }
-
-Do not run destructive commands.
 
 ---
 

@@ -144,7 +144,7 @@ export default function (pi: ExtensionAPI) {
       type: "object",
       properties: {
         path: { type: "string", description: "Path for file to write" },
-        contents: { type: "string", description: "The content of the file" }
+        contents: { type: "string", description: "The contents of the file" }
       },
       required: ["path", "contents"]
     },
