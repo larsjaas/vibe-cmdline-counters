@@ -3,7 +3,7 @@
 const fs = require("fs/promises");
 const path = require("path");
 
-fs.appendFile("/tmp/pi-tool-debug.log", "Called list_files.js\n");
+// fs.appendFile("/tmp/pi-tool-debug.log", "Called list_files.js\n");
 
 let input = "";
 

@@ -62,7 +62,7 @@ export default function (pi: ExtensionAPI) {
       required: ["path"]
     },
     execute: async (toolCallId, params, signal, onUpdate, ctx) => {
-	    await fs.appendFile("/tmp/pi-tool-debug.log", "RENDER: " + JSON.stringify(params,null,2)+"\n");
+      // await fs.appendFile("/tmp/pi-tool-debug.log", "RENDER: " + JSON.stringify(params,null,2)+"\n");
       const result = await runTool("tools/list_files.js", params);
       return {
         content: [
