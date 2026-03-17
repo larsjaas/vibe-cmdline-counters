@@ -3,6 +3,7 @@
 // CommonJS version of apply_patch.js
 const fs = require("fs").promises;
 const readline = require("readline");
+const path = require("path");
 
 async function readStdin() {
   const rl = readline.createInterface({ input: process.stdin });
@@ -31,7 +32,8 @@ async function main() {
       if (line.startsWith("*** Begin Patch") || line.trim() === "") continue;
 
       if (line.startsWith("*** Update File:")) {
-        if (currentFile && fileBuffer.length) {
+        if (currentFile !== null) {
+          await fs.mkdir(path.dirname(currentFile), { recursive: true });
           await fs.writeFile(currentFile, fileBuffer.join("\n") + "\n");
           console.log(`Patched file ${currentFile}`);
         }
@@ -46,8 +48,34 @@ async function main() {
         continue;
       }
 
+      if (line.startsWith("*** Delete File:")) {
+        const filePath = line.replace("*** Delete File:", "").trim();
+      
+        try {
+          await fs.unlink(filePath);
+          console.log(`Deleted file ${filePath}`);
+        } catch (err) {
+          console.error(`Failed to delete ${filePath}: ${err.message}`);
+        }
+      
+        // reset state
+        currentFile = null;
+        fileBuffer = [];
+        inHunk = false;
+        continue;
+      }
+
+      if (line.startsWith("*** Add File:")) {
+        const filePath = line.replace("*** Add File:", "").trim();
+        currentFile = filePath;
+        fileBuffer = [];
+        inHunk = "add";
+        continue;
+      }
+
       if (line.startsWith("*** End Patch")) {
-        if (currentFile && fileBuffer.length) {
+        if (currentFile !== null) {
+          await fs.mkdir(path.dirname(currentFile), { recursive: true });
           await fs.writeFile(currentFile, fileBuffer.join("\n") + "\n");
           console.log(`Patched file ${currentFile}`);
         }
@@ -62,18 +90,37 @@ async function main() {
       }
 
       if (inHunk && currentFile) {
+        if (inHunk === "add") {
+          fileBuffer.push(line);
+          continue;
+        }
+      
         if (line.startsWith("-")) {
           const oldLine = line.slice(1);
-          const index = fileBuffer.indexOf(oldLine);
-          if (index >= 0) fileBuffer.splice(index, 1);
+          const nextLine = lines[i + 1];
+        
+          if (nextLine && nextLine.startsWith("+")) {
+            const newLine = nextLine.slice(1);
+            const index = fileBuffer.indexOf(oldLine);
+        
+            if (index >= 0) {
+              fileBuffer.splice(index, 1, newLine); // replace in-place
+            }
+        
+            i++; // skip the "+" line
+          } else {
+            // pure deletion
+            const index = fileBuffer.indexOf(oldLine);
+            if (index >= 0) fileBuffer.splice(index, 1);
+          }
         } else if (line.startsWith("+")) {
-          const newLine = line.slice(1);
-          fileBuffer.push(newLine);
+          fileBuffer.push(line.slice(1));
         }
       }
     }
 
-    if (currentFile && fileBuffer.length) {
+    if (currentFile !== null) {
+      await fs.mkdir(path.dirname(currentFile), { recursive: true });
       await fs.writeFile(currentFile, fileBuffer.join("\n") + "\n");
       console.log(`Patched file ${currentFile}`);
     }
