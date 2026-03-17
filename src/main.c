@@ -1,33 +1,51 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <sys/time.h>
+#include <sys/time.h>
 
 #include "counters.h"
+
+/* Get current time in milliseconds since epoch */
+static long long get_epoch_milliseconds(void)
+{
+    struct timeval tv;
+    if (gettimeofday(&tv, NULL) == -1) {
+        return 0;
+    }
+    return (long long)tv.tv_sec * 1000LL + tv.tv_usec / 1000LL;
+}
 
 /* Print help message. */
 static void print_help(void)
 {
     printf("cmdline-counter\n");
-    printf("Usage: \n");
+    printf("Usage:\n");
     printf("  app [options] [counter]\n\n");
     printf("Options:\n");
-    printf("  -f, --file=FILE        specify counters file\n");
-    printf("  --set=VALUE, -s VALUE  set counter to value\n");
-    printf("  --update=VALUE, -u VALUE increment counter by value\n");
+    printf("  -f, --file=FILE        specify counters file (default: $COUNTERS_FILE or $HOME/.counters)\n");
+    printf("  --set=VALUE, -s VALUE  set counter to VALUE\n");
+    printf("  --update=VALUE, -u VALUE increment counter by VALUE\n");
     printf("  --delete, -d           delete counter\n");
-    printf("  -l, --log[=FILE]       specify log file (default: $HOME/.counters.log)\n");
+    printf("  -l, --log[=FILE]       specify log file (default: $COUNTERS_LOG or $HOME/.counters.log)\n");
     printf("  -h, --help, -?         show this help\n\n");
+    printf("Environment variables:\n");
+    printf("  COUNTERS_FILE          default counter file path\n");
+    printf("  COUNTERS_LOG           default log file path\n");
+    printf("  HOME                   used for default paths when env vars are unset\n");
 }
 
 int main(int argc, char *argv[])
 {
-    /* --- Argument / option handling -------------------------------------------------- */
+    /* --- Argument / option handling ------------------------------ */
     const char *countersfile = NULL;
     const char *counters_log = NULL;    /* log file name, unused in current code */
     const char *countername = NULL;
     const char *set_value = NULL;
     const char *update_value = NULL;
     int delete_flag = 0;
+    FILE *logfp = NULL;
 
     /* If help flag present anywhere, show help and exit. */
     for (int i = 1; i < argc; ++i) {
@@ -106,6 +124,14 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    /* Open log file for appending */
+    if (counters_log) {
+        logfp = fopen(counters_log, "a");
+        if (!logfp) {
+            fprintf(stderr, "Warning: cannot open log file '%s' for appending.\n", counters_log);
+        }
+    }
+
     /* Read counters from file */
     read_counters(countersfile);
 
@@ -113,10 +139,19 @@ int main(int argc, char *argv[])
     if (countername) {
         /* Ensure counter exists */
         if (!counter_exists(countername)) {
-            add_counter(countername, 0);
+            long init_val = 0;
+            add_counter(countername, init_val);
+            if (logfp) {
+                long long epoch = get_epoch_milliseconds();
+                fprintf(logfp, "new,%s,%lld,%lld\n", countername, init_val, epoch);
+            }
         }
         if (delete_flag) {
             delete_counter(countername);
+            if (logfp) {
+                long long epoch = get_epoch_milliseconds();
+                fprintf(logfp, "delete,%s,%lld\n", countername, epoch);
+            }
         } else if (set_value) {
             long val = strtol(set_value, NULL, 10);
             int idx = 0;
@@ -127,6 +162,10 @@ int main(int argc, char *argv[])
                 }
                 ++idx;
             }
+            if (logfp) {
+                long long epoch = get_epoch_milliseconds();
+                fprintf(logfp, "set,%s,%lld,%lld\n", countername, val, epoch);
+            }
         } else if (update_value) {
             long delta = strtol(update_value, NULL, 10);
             int idx = 0;
@@ -136,6 +175,10 @@ int main(int argc, char *argv[])
                     break;
                 }
                 ++idx;
+            }
+            if (logfp) {
+                long long epoch = get_epoch_milliseconds();
+                fprintf(logfp, "update,%s,%lld,%lld\n", countername, delta, epoch);
             }
         } else {
             /* Print the current value */
@@ -152,5 +195,12 @@ int main(int argc, char *argv[])
 
     /* Write counters back to file */
     write_counters(countersfile);
+
+    /* Flush and close log file */
+    if (logfp) {
+        fflush(logfp);
+        fclose(logfp);
+    }
+
     return 0;
 }
