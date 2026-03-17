@@ -3,6 +3,8 @@
 # Exit immediately if any command fails
 set -e
 
+export COUNTERS_LOG="./test-log-counters.csv"
+
 # Function to clean up any test counter files
 cleanup() {
     rm -f .test*-counters.csv
