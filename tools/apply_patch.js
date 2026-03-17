@@ -1,15 +1,13 @@
 #!/usr/bin/env node
 
-const fs = require("fs");
-const fsp = require("fs/promises");
+const fs = require("fs/promises");
 const path = require("path");
 
-// ---- Read stdin safely ----
+// ---- Read stdin ----
 async function readStdin() {
   return new Promise((resolve, reject) => {
     let data = "";
     process.stdin.setEncoding("utf8");
-
     process.stdin.on("data", chunk => (data += chunk));
     process.stdin.on("end", () => resolve(data));
     process.stdin.on("error", reject);
@@ -18,7 +16,15 @@ async function readStdin() {
 
 // ---- Ensure directory exists ----
 async function ensureDir(filePath) {
-  await fsp.mkdir(path.dirname(filePath), { recursive: true });
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+}
+
+// ---- Parse hunk header ----
+// @@ -oldStart,oldLen +newStart,newLen @@
+function parseHunkHeader(line) {
+  const match = /@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(line);
+  if (!match) return 0;
+  return Math.max(parseInt(match[1], 10) - 1, 0); // convert to 0-based
 }
 
 // ---- Apply patch ----
@@ -31,18 +37,18 @@ async function applyPatch(patchText) {
 
   let mode = null; // null | "add" | "update"
   let inHunk = false;
+  let cursor = 0;
 
   async function flushFile() {
     if (currentFile === null) return;
-
     await ensureDir(currentFile);
-    await fsp.writeFile(currentFile, fileBuffer.join("\n"), "utf8");
+    await fs.writeFile(currentFile, fileBuffer.join("\n"), "utf8");
   }
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    // ---- FILE OPERATIONS ----
+    // ---- FILE OPS ----
 
     if (line.startsWith("*** Update File: ")) {
       await flushFile();
@@ -52,7 +58,7 @@ async function applyPatch(patchText) {
       inHunk = false;
 
       try {
-        const content = await fsp.readFile(currentFile, "utf8");
+        const content = await fs.readFile(currentFile, "utf8");
         originalLines = content.split("\n");
       } catch {
         originalLines = [];
@@ -76,7 +82,7 @@ async function applyPatch(patchText) {
       const fileToDelete = line.replace("*** Delete File: ", "").trim();
 
       try {
-        await fsp.unlink(fileToDelete);
+        await fs.unlink(fileToDelete);
         console.error(`Deleted ${fileToDelete}`);
       } catch {
         console.error(`File not found for deletion: ${fileToDelete}`);
@@ -92,10 +98,11 @@ async function applyPatch(patchText) {
       continue;
     }
 
-    // ---- HUNKS ----
+    // ---- HUNK START ----
 
     if (line.startsWith("@@")) {
       inHunk = true;
+      cursor = parseHunkHeader(line);
       continue;
     }
 
@@ -113,51 +120,48 @@ async function applyPatch(patchText) {
     // ---- UPDATE MODE ----
 
     if (mode === "update" && inHunk) {
-      // Replace (- followed by +)
+      // Context line
+      if (line.startsWith(" ")) {
+        cursor++;
+        continue;
+      }
+
+      // Delete line
       if (line.startsWith("-")) {
-        const oldLine = line.slice(1);
-        const nextLine = lines[i + 1];
+        const expected = line.slice(1);
 
-        const index = fileBuffer.indexOf(oldLine);
-
-        if (nextLine && nextLine.startsWith("+")) {
-          const newLine = nextLine.slice(1);
-
-          if (index >= 0) {
-            fileBuffer.splice(index, 1, newLine);
-          } else {
-            console.error(`WARN: line not found for replace: ${oldLine}`);
-          }
-
-          i++; // skip "+"
+        if (fileBuffer[cursor] === expected) {
+          fileBuffer.splice(cursor, 1);
         } else {
-          // Pure delete
-          if (index >= 0) {
-            fileBuffer.splice(index, 1);
+          // fallback: try to find nearby
+          const idx = fileBuffer.indexOf(expected, cursor);
+          if (idx !== -1) {
+            fileBuffer.splice(idx, 1);
+            cursor = idx;
           } else {
-            console.error(`WARN: line not found for delete: ${oldLine}`);
+            console.error(`WARN: delete mismatch: "${expected}"`);
           }
         }
-
         continue;
       }
 
-      // Standalone add
+      // Add line
       if (line.startsWith("+")) {
-        fileBuffer.push(line.slice(1));
+        fileBuffer.splice(cursor, 0, line.slice(1));
+        cursor++;
         continue;
       }
 
-      // Context line (ignored in this simple implementation)
+      // Unknown line → ignore
       continue;
     }
   }
 
-  // Final flush (if no *** End Patch)
+  // Final flush
   await flushFile();
 }
 
-// ---- Main ----
+// ---- MAIN ----
 (async () => {
   try {
     const input = await readStdin();

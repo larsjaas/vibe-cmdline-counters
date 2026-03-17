@@ -74,7 +74,7 @@ export default function (pi: ExtensionAPI) {
       };
     },
     renderCall: (args, theme) => {
-      return new Text(JSON.stringify(args,null,2)+"\n", 0, 0);
+      return new Text("list_files:\n"+JSON.stringify(args,null,2)+"\n", 0, 0);
     // },
     // renderResult: (result, options, theme) => {
     //   return new Text(result.text, 0, 0);
@@ -104,7 +104,7 @@ export default function (pi: ExtensionAPI) {
       };
     },
     renderCall: (args, theme) => {
-      return new Text(args.patch+"\n", 0, 0);
+      return new Text("apply_patch:\n"+args.patch+"\n", 0, 0);
     }
   });
 
@@ -132,7 +132,7 @@ export default function (pi: ExtensionAPI) {
       };
     },
     renderCall: (args, theme) => {
-      return new Text(JSON.stringify(args,null,2)+"\n", 0, 0);
+      return new Text("search:\n"+JSON.stringify(args,null,2)+"\n", 0, 0);
     }
   });
 
@@ -160,7 +160,7 @@ export default function (pi: ExtensionAPI) {
       };
     },
     renderCall: (args, theme) => {
-      return new Text(JSON.stringify(args,null,2)+"\n", 0, 0);
+      return new Text("write_file:\n"+JSON.stringify(args,null,2)+"\n", 0, 0);
     }
   });
 
@@ -187,7 +187,7 @@ export default function (pi: ExtensionAPI) {
       };
     },
     renderCall: (args, theme) => {
-      return new Text(JSON.stringify(args,null,2)+"\n", 0, 0);
+      return new Text("read_file:\n"+JSON.stringify(args,null,2)+"\n", 0, 0);
     }
   });
 
@@ -214,7 +214,7 @@ export default function (pi: ExtensionAPI) {
       };
     },
     renderCall: (args, theme) => {
-      return new Text(JSON.stringify(args,null,2)+"\n", 0, 0);
+      return new Text("run_shell:\n"+JSON.stringify(args,null,2)+"\n", 0, 0);
     }
   });
 }
