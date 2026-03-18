@@ -3,8 +3,8 @@
 This is a minor command-line utility, vibe-coded in C with locally run LLM models.
 
 Using:
-  pi / pi-coding-agents
-  ollama + gpt-oss:20b
+- pi / pi-coding-agents
+- ollama + gpt-oss:20b
 
 # Purpose
 
@@ -48,6 +48,12 @@ Help:
       COUNTERS_FILE          default counter file path
       COUNTERS_LOG           default log file path
       HOME                   used for default paths when env vars are unset
+
+# Development
+
+After installing pi-coding-agents, run the following command, and let it rip!
+
+    $ pi -e tools/tools.ts
 
 # License
 
